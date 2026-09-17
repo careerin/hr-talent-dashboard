@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR 인재 성향 분석 대시보드</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; }
+    body { background-color: #f4f6f9; color: #333; padding: 24px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    
+    /* 헤더 */
+    .header { margin-bottom: 24px; }
+    .header h1 { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .header p { color: #64748b; font-size: 14px; margin-top: 4px; }
+
+    /* KPI 요약 카드 */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .kpi-title { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+    .kpi-value { font-size: 28px; font-weight: 700; color: #0f172a; margin-top: 8px; }
+    .kpi-sub { font-size: 12px; color: #10b981; margin-top: 4px; font-weight: 500; }
+
+    /* 필터 바 */
+    .filter-card { background: #ffffff; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .filter-group label { font-size: 12px; font-weight: 600; color: #475569; }
+    .filter-group select { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; min-width: 160px; outline: none; background-color: #fff; }
+    .filter-group select:focus { border-color: #3b82f6; }
+    .btn-reset { margin-top: auto; padding: 8px 16px; border-radius: 6px; border: none; background: #e2e8f0; color: #334155; font-size: 13px; font-weight: 600; cursor: pointer; height: 38px; }
+    .btn-reset:hover { background: #cbd5e1; }
+
+    /* 메인 그리드 (차트 & 통계) */
+    .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+    .card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .card h3 { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+
+    /* 랭킹 리스트 */
+    .rank-list { list-style: none; }
+    .rank-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-name { font-weight: 600; color: #334155; }
+    .rank-count { background: #e0e7ff; color: #4338ca; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+
+    /* 테이블 */
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
+    th { background: #f8fafc; color: #475569; font-weight: 600; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+    tr:hover { background: #f8fafc; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .tag-role { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .tag-talent { background: #eff6ff; color: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>HR 인재 성향 분석 대시보드</h1>
+      <p>조직 구성원의 강점 역할 및 핵심 재능 데이터 요약 보고서</p>
+    </div>
+
+    <!-- KPI 섹션 -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">분석 인원</div>
+        <div class="kpi-value" id="kpiTotal">12명</div>
+        <div class="kpi-sub">데이터 100% 반영</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">최빈 강점 역할</div>
+        <div class="kpi-value" id="kpiTopRole">분석가</div>
+        <div class="kpi-sub">주요 실무 중심형</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">핵심 역량 (Top 1)</div>
+        <div class="kpi-value" id="kpiTopTalent">고찰</div>
+        <div class="kpi-sub">심층적 사고 강점</div>
+      </div>
+    </div>
+
+    <!-- 필터 섹션 -->
+    <div class="filter-card">
+      <div class="filter-group">
+        <label for="roleFilter">강점역할 1순위 필터</label>
+        <select id="roleFilter">
+          <option value="ALL">전체 보기</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="talentFilter">재능 1순위 필터</label>
+        <select id="talentFilter">
+          <option value="ALL">전체 보기</option>
+        </select>
+      </div>
+      <button class="btn-reset" onclick="resetFilters()">필터 초기화</button>
+    </div>
+
+    <!-- 차트 및 순위 통계 -->
+    <div class="content-grid">
+      <div class="card">
+        <h3>주요 재능 분포 빈도 (전체 순위 기준)</h3>
+        <canvas id="talentBarChart" height="120"></canvas>
+      </div>
+      <div class="card">
+        <h3>상위 재능 Top 5</h3>
+        <ul class="rank-list" id="rankList"></ul>
+      </div>
+    </div>
+
+    <!-- 명단 테이블 -->
+    <div class="card">
+      <h3>선택된 인원 상세 명단</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>강점역할 1순위</th>
+              <th>강점역할 2순위</th>
+              <th>재능 1순위</th>
+              <th>재능 2순위</th>
+              <th>재능 3순위</th>
+            </tr>
+          </thead>
+          <tbody id="memberTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 12명 원본 데이터셋
+    const rawData = [
+      { name: "김지훈", role1: "전략가", role2: "실행자", t1: "고찰", t2: "계획", t3: "달성" },
+      { name: "이수진", role1: "분석가", role2: "조정자", t1: "공감", t2: "효율", t3: "신념" },
+      { name: "박민수", role1: "개척자", role2: "촉진자", t1: "추진", t2: "도전", t3: "열정" },
+      { name: "정다은", role1: "분석가", role2: "전략가", t1: "고찰", t2: "분석", t3: "논리" },
+      { name: "최원영", role1: "조정자", role2: "실행자", t1: "효율", t2: "책임", t3: "신뢰" },
+      { name: "강현우", role1: "전략가", role2: "개척자", t1: "착상", t2: "발상", t3: "계획" },
+      { name: "윤서연", role1: "촉진자", role2: "조정자", t1: "공감", t2: "관계", t3: "친화" },
+      { name: "임태균", role1: "실행자", role2: "분석가", t1: "달성", t2: "초점", t3: "성취" },
+      { name: "한가람", role1: "분석가", role2: "전략가", t1: "고찰", t2: "심사", t3: "완벽" },
+      { name: "오세진", role1: "실행자", role2: "촉진자", t1: "효율", t2: "적응", t3: "행동" },
+      { name: "조유리", role1: "조정자", role2: "전략가", t1: "공감", t2: "수용", t3: "화합" },
+      { name: "배동현", role1: "개척자", role2: "실행자", t1: "주도", t2: "경쟁", t3: "추진" }
+    ];
+
+    let chartInstance = null;
+
+    // 초기화
+    window.addEventListener('DOMContentLoaded', () => {
+      populateDropdowns();
+      setupEventListeners();
+      updateDashboard(rawData);
+    });
+
+    function populateDropdowns() {
+      const roleSet = new Set(rawData.map(d => d.role1));
+      const talentSet = new Set(rawData.map(d => d.t1));
+
+      const roleSelect = document.getElementById('roleFilter');
+      const talentSelect = document.getElementById('talentFilter');
+
+      roleSet.forEach(role => {
+        const opt = document.createElement('option');
+        opt.value = role;
+        opt.textContent = role;
+        roleSelect.appendChild(opt);
+      });
+
+      talentSet.forEach(talent => {
+        const opt = document.createElement('option');
+        opt.value = talent;
+        opt.textContent = talent;
+        talentSelect.appendChild(opt);
+      });
+    }
+
+    function setupEventListeners() {
+      document.getElementById('roleFilter').addEventListener('change', filterData);
+      document.getElementById('talentFilter').addEventListener('change', filterData);
+    }
+
+    function filterData() {
+      const selectedRole = document.getElementById('roleFilter').value;
+      const selectedTalent = document.getElementById('talentFilter').value;
+
+      const filtered = rawData.filter(item => {
+        const matchRole = selectedRole === 'ALL' || item.role1 === selectedRole;
+        const matchTalent = selectedTalent === 'ALL' || item.t1 === selectedTalent;
+        return matchRole && matchTalent;
+      });
+
+      updateDashboard(filtered);
+    }
+
+    function resetFilters() {
+      document.getElementById('roleFilter').value = 'ALL';
+      document.getElementById('talentFilter').value = 'ALL';
+      updateDashboard(rawData);
+    }
+
+    function updateDashboard(data) {
+      // 1. KPI 갱신
+      document.getElementById('kpiTotal').textContent = `${data.length}명`;
+
+      // 2. 테이블 렌더링
+      const tbody = document.getElementById('memberTableBody');
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 30px;">조건에 일치하는 구성원이 없습니다.</td></tr>`;
+      } else {
+        data.forEach(m => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight: 600;">${m.name}</td>
+            <td><span class="tag tag-role">${m.role1}</span></td>
+            <td><span class="tag tag-role">${m.role2}</span></td>
+            <td><span class="tag tag-talent">${m.t1}</span></td>
+            <td><span class="tag tag-talent">${m.t2}</span></td>
+            <td><span class="tag tag-talent">${m.t3}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // 3. 재능 빈도 계산 (t1, t2, t3 종합 집계)
+      const talentCounts = {};
+      data.forEach(item => {
+        [item.t1, item.t2, item.t3].forEach(t => {
+          talentCounts[t] = (talentCounts[t] || 0) + 1;
+        });
+      });
+
+      const sortedTalents = Object.entries(talentCounts)
+        .sort((a, b) => b[1] - a[1]);
+
+      // 4. 상위 랭킹 리스트 갱신
+      const rankList = document.getElementById('rankList');
+      rankList.innerHTML = '';
+      sortedTalents.slice(0, 5).forEach(([talent, count]) => {
+        const li = document.createElement('li');
+        li.className = 'rank-item';
+        li.innerHTML = `
+          <span class="rank-name">${talent}</span>
+          <span class="rank-count">${count}명</span>
+        `;
+        rankList.appendChild(li);
+      });
+
+      // 5. 차트 렌더링
+      renderChart(sortedTalents.slice(0, 7));
+    }
+
+    function renderChart(talentData) {
+      const ctx = document.getElementById('talentBarChart').getContext('2d');
+      const labels = talentData.map(d => d[0]);
+      const counts = talentData.map(d => d[1]);
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '보유 인원 수',
+            data: counts,
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, precision: 0 }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
